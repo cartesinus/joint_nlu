@@ -1,0 +1,8 @@
+transformers[torch]
+datasets
+seqeval
+tensorboard
+matplotlib
+pandas
+scikit-learn
+click
