@@ -367,8 +367,8 @@ def semantic_accuracy(intent_true, intent_pred, slot_true, slot_pred):
         intent_pred lists.
     """
     correct_count = 0
-    for i in enumerate(intent_true):
-        if intent_true[i] == intent_pred[i]:
+    for i, intent_label in enumerate(intent_true):
+        if intent_label == intent_pred[i]:
             if slot_true[i] == slot_pred[i]:
                 correct_count += 1
 

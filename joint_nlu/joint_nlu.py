@@ -139,7 +139,7 @@ class JointNLUModel(nn.Module):
         self.intent_classifier = nn.Linear(self.encoder.config.hidden_size, config.num_intents)
         self.slot_classifier = nn.Linear(self.encoder.config.hidden_size, config.num_slots)
 
-    def forward(self, input_ids, attention_maskm, labels=None):
+    def forward(self, input_ids, attention_mask, labels=None):
         """
         Performs a forward pass on the inputs to produce intent and slot logits.
 
@@ -242,6 +242,9 @@ class CustomTrainer(Trainer):
         get_eval_dataloader: Returns a DataLoader for the evaluation data with a custom collate
             function.
     """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
     def compute_loss(self, model, inputs, return_outputs=False):
         """
         Computes the loss for both intent classification and slot filling tasks.
@@ -304,9 +307,10 @@ class CustomTrainer(Trainer):
         Returns:
             DataLoader: The DataLoader object for the evaluation data.
         """
+        eval_dataset = eval_dataset if eval_dataset is not None else self.eval_dataset
         # Override to modify collate_fn
         return DataLoader(
-            eval_dataset,  # or in case of emergency break glass: tokenized_dataset["validation"],
+            eval_dataset,
             collate_fn=DataCollatorForJointIntentAndSlotFilling(tokenizer=self.tokenizer),
             batch_size=self.args.eval_batch_size,
         )
