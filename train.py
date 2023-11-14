@@ -46,9 +46,11 @@ if __name__ == '__main__':
 
     tokenizer = AutoTokenizer.from_pretrained(configuration['model_id'])
     split_ratio = configuration.get('split_ratio')
+    filters = configuration.get('filters')
     dataset, iob = preprocess_dataset(configuration['dataset_id'],
                                       configuration['dataset_configs'],
-                                      split_ratio)
+                                      split_ratio,
+                                      filters)
     tokenize_with_tokenizer = partial(tokenize_and_process_labels, tokenizer=tokenizer)
     tokenized_datasets = dataset.map(tokenize_with_tokenizer, batched=True)
 

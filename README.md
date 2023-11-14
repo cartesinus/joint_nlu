@@ -36,4 +36,21 @@ trainer = CustomTrainer(model=model, args=training_args, data_collator=data_coll
 trainer.train()
 ```
 
+## Dataset Filtering
+
+JointNLU supports dataset filtering based on specified column values. This feature allows users to include or exclude specific data points from the training process based on the values in certain columns (e.g., scenario or intent).
+
+To use dataset filtering, update the configuration file to include filters for the desired columns. The filters are specified as a dictionary, where keys are column names, and values are lists of accepted values for each column.
+
+```json
+{
+  "filters": {
+    "scenario": ["calendar", "travel"],
+    "intent": ["book_flight", "schedule_meeting"]
+  }
+}
+```
+
+In this example, the dataset will be filtered to include only the rows where the scenario column contains either "calendar" or "travel", and the intent column contains either "book_flight" or "schedule_meeting".
+
 Please refer to the source code and comments for more detailed information.

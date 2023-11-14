@@ -188,6 +188,31 @@ def get_all_iob_tokens(dataset):
     return uniq_iob
 
 
+def apply_filters_to_dataset(dataset, filters):
+    """
+    Applies filters to a dataset based on specified column values.
+
+    Parameters:
+    - dataset (Dataset): The dataset to be filtered.
+    - filters (dict): A dictionary where keys are column names and values are lists of
+      accepted values for the corresponding column.
+
+    Returns:
+    - Dataset: The filtered dataset.
+    """
+    for filter_col, filter_values in filters.items():
+        if isinstance(dataset.features[filter_col], ClassLabel):
+            class_mapping = dataset.features[filter_col].names
+            filter_indices = [class_mapping.index(val) for val in filter_values if val in class_mapping]
+            check_value = lambda example: example[filter_col] in filter_indices
+        else:
+            check_value = lambda example: example[filter_col] in filter_values
+
+        dataset = dataset.filter(check_value)
+
+    return dataset
+
+
 # Configuration for each dataset
 DATASET_CONFIGS = {
     "AmazonScience/massive": {
@@ -199,7 +224,7 @@ DATASET_CONFIGS = {
 }
 
 
-def preprocess_dataset(dataset_id, dataset_configs, split_ratio):
+def preprocess_dataset(dataset_id, dataset_configs, split_ratio, filters=None):
     """
     Preprocesses a multilingual dataset for NLU tasks based on specified configurations and split
     ratios.
@@ -243,6 +268,12 @@ def preprocess_dataset(dataset_id, dataset_configs, split_ratio):
         lang_ds_train = load_dataset(dataset_id, lang, split=split_config['train'])
         lang_ds_validation = load_dataset(dataset_id, lang, split=split_config['validation'])
         lang_ds_test = load_dataset(dataset_id, lang, split=split_config['test'])
+
+        # Apply filters if specified
+        if filters:
+            lang_ds_train = apply_filters_to_dataset(lang_ds_train, filters)
+            lang_ds_validation = apply_filters_to_dataset(lang_ds_validation, filters)
+            lang_ds_test = apply_filters_to_dataset(lang_ds_test, filters)
 
         # only keep the specified columns
         lang_ds_train = lang_ds_train.remove_columns([col for col in lang_ds_train.column_names
