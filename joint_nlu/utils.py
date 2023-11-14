@@ -198,67 +198,98 @@ DATASET_CONFIGS = {
     # Add other datasets here...
 }
 
-def preprocess_dataset(dataset_id, dataset_configs):
+
+def preprocess_dataset(dataset_id, dataset_configs, split_ratio):
+    """
+    Preprocesses a multilingual dataset for NLU tasks based on specified configurations and split
+    ratios.
+
+    Parameters:
+        dataset_id (str): The identifier of the dataset.
+        dataset_configs (List[str]): List of configurations for different languages in the dataset.
+        split_ratio (dict): Ratios for splitting the dataset into train, valid, and testing sets.
+
+    Returns:
+        Tuple[DatasetDict, ClassLabel]: A tuple containing the preprocessed dataset and the IOB
+            label class.
+    """
     # Get the configuration for the dataset
     config = DATASET_CONFIGS.get(dataset_id)
     if not config:
         raise ValueError(f"No configuration found for dataset: {dataset_id}")
+
+    # Default split ratio if not provided
+    default_split_ratio = {
+        "train": "100%",
+        "validation": "100%",
+        "test": "100%"
+    }
+
+    # Use the provided split ratio or the default one
+    split_ratio = split_ratio if split_ratio else default_split_ratio
 
     # process individuell datasets
     proc_lan_dataset_list=[]
     iob = []
 
     for lang in dataset_configs:
+        split_config = {
+            "train": f"train[:{split_ratio['train']}]",
+            "validation": f"validation[:{split_ratio['validation']}]",
+            "test": f"test[:{split_ratio['test']}]"
+        }
+
         # load dataset for language
-        lang_ds = load_dataset(dataset_id, lang)
+        lang_ds_train = load_dataset(dataset_id, lang, split=split_config['train'])
+        lang_ds_validation = load_dataset(dataset_id, lang, split=split_config['validation'])
+        lang_ds_test = load_dataset(dataset_id, lang, split=split_config['test'])
+
         # only keep the specified columns
-        lang_ds = lang_ds.remove_columns([col for col in lang_ds["train"].column_names
+        lang_ds_train = lang_ds_train.remove_columns([col for col in lang_ds_train.column_names
+                                          if col not in config["keep_columns"]])
+        lang_ds_validation = lang_ds_validation.remove_columns([col for col in lang_ds_validation.column_names
+                                          if col not in config["keep_columns"]])
+        lang_ds_test = lang_ds_test.remove_columns([col for col in lang_ds_test.column_names
                                           if col not in config["keep_columns"]])
 
         # rename the columns as specified
         for old_name, new_name in config["rename_column"].items():
-            lang_ds = lang_ds.rename_column(old_name, new_name)
+            lang_ds_train = lang_ds_train.rename_column(old_name, new_name)
+            lang_ds_validation = lang_ds_validation.rename_column(old_name, new_name)
+            lang_ds_test = lang_ds_test.rename_column(old_name, new_name)
 
         # Get the function to process the dataset
         process_function = config["process_function"]
 
-        iob_uniq = get_all_iob_tokens([process_function(s) for s in lang_ds["train"]["annot_utt"]
-                                           + lang_ds["test"]["annot_utt"]
-                                           + lang_ds["validation"]["annot_utt"]])
+        iob_uniq = get_all_iob_tokens([process_function(s) for s in lang_ds_train["annot_utt"]
+                                           + lang_ds_test["annot_utt"]
+                                           + lang_ds_validation["annot_utt"]])
         iob = ClassLabel(num_classes=len(iob_uniq), names=iob_uniq)
 
         #tokens
-        lang_ds["train"] = lang_ds["train"].add_column("tokens",
-                [x.split() for x in lang_ds["train"]["text"]])
-        lang_ds["test"] = lang_ds["test"].add_column("tokens",
-            [x.split() for x in lang_ds["test"]["text"]])
-        lang_ds["validation"] = lang_ds["validation"].add_column("tokens",
-                [x.split() for x in lang_ds["validation"]["text"]])
+        lang_ds_train = lang_ds_train.add_column("tokens",
+                [x.split() for x in lang_ds_train["text"]])
+        lang_ds_test = lang_ds_test.add_column("tokens",
+            [x.split() for x in lang_ds_test["text"]])
+        lang_ds_validation = lang_ds_validation.add_column("tokens",
+                [x.split() for x in lang_ds_validation["text"]])
 
         #iob
-        lang_ds["train"] = lang_ds["train"].add_column("iob_tokens",
-            [process_function(s).split() for s in lang_ds["train"]["annot_utt"]])
-        lang_ds["test"] = lang_ds["test"].add_column("iob_tokens",
-            [process_function(s).split() for s in lang_ds["test"]["annot_utt"]])
-        lang_ds["validation"] = lang_ds["validation"].add_column("iob_tokens",
-            [process_function(s).split() for s in lang_ds["validation"]["annot_utt"]])
-        lang_ds["train"] = lang_ds["train"].add_column("iob",
-                [iob.str2int(s) for s in lang_ds["train"]["iob_tokens"]])
-        lang_ds["test"] = lang_ds["test"].add_column("iob",
-                [iob.str2int(s) for s in lang_ds["test"]["iob_tokens"]])
-        lang_ds["validation"] = lang_ds["validation"].add_column("iob",
-                [iob.str2int(s) for s in lang_ds["validation"]["iob_tokens"]])
+        lang_ds_train = lang_ds_train.add_column("iob_tokens",
+            [process_function(s).split() for s in lang_ds_train["annot_utt"]])
+        lang_ds_test = lang_ds_test.add_column("iob_tokens",
+            [process_function(s).split() for s in lang_ds_test["annot_utt"]])
+        lang_ds_validation = lang_ds_validation.add_column("iob_tokens",
+            [process_function(s).split() for s in lang_ds_validation["annot_utt"]])
+        lang_ds_train = lang_ds_train.add_column("iob",
+                [iob.str2int(s) for s in lang_ds_train["iob_tokens"]])
+        lang_ds_test = lang_ds_test.add_column("iob",
+                [iob.str2int(s) for s in lang_ds_test["iob_tokens"]])
+        lang_ds_validation = lang_ds_validation.add_column("iob",
+                [iob.str2int(s) for s in lang_ds_validation["iob_tokens"]])
 
-        proc_lan_dataset_list.append(lang_ds)
-
-
-    # concat single splits into one
-    train_dataset = concatenate_datasets([ds["train"] for ds in proc_lan_dataset_list])
-    eval_dataset = concatenate_datasets([ds["validation"] for ds in proc_lan_dataset_list])
-    test_dataset = concatenate_datasets([ds["test"] for ds in proc_lan_dataset_list])
-
-    dataset = DatasetDict({"train": train_dataset, "validation": eval_dataset,
-        "test": test_dataset})
+    dataset = DatasetDict({"train": lang_ds_train, "validation": lang_ds_validation,
+        "test": lang_ds_test})
     return dataset, iob
 
 
@@ -299,6 +330,24 @@ def pad_or_truncate_labels(label_ids: List[int], max_length: int) -> List[int]:
 
 
 def tokenize_and_process_labels(examples: Dict, tokenizer) -> Dict:
+    """
+    Tokenizes and processes labels for NLU tasks.
+
+    This function tokenizes the input text and processes the corresponding IOB (Inside, Outside,
+    Beginning) labels to align them with the tokenized input. It ensures that each token has a
+    corresponding label, either by extending labels to match the tokenized text or by
+    padding/truncating them to a specified maximum length.
+
+    Parameters:
+        examples (Dict): A dictionary containing the text and labels. Expected keys are 'annot_utt'
+            for annotated utterances, 'iob' for IOB labels, and 'tokens' for tokenized text.
+        tokenizer: The tokenizer used for processing the text.
+
+    Returns:
+        Dict: A dictionary with tokenized inputs and processed labels. Adds keys 'labels' and 'iob'
+            to the input dictionary, containing the processed labels aligned with the tokenized
+            text.
+    """
     # Tokenize all examples
     tokenized_inputs = tokenizer(examples["annot_utt"], truncation=True, padding="max_length",
                                  max_length=512)

@@ -7,8 +7,8 @@ import sys
 import json
 import logging
 import argparse
-import torch
 from functools import partial
+import torch
 from transformers import AutoTokenizer
 from joint_nlu import (
     NLUConfig,
@@ -45,7 +45,10 @@ if __name__ == '__main__':
     logging.info('Started training')
 
     tokenizer = AutoTokenizer.from_pretrained(configuration['model_id'])
-    dataset, iob = preprocess_dataset(configuration['dataset_id'], configuration['dataset_configs'])
+    split_ratio = configuration.get('split_ratio')
+    dataset, iob = preprocess_dataset(configuration['dataset_id'],
+                                      configuration['dataset_configs'],
+                                      split_ratio)
     tokenize_with_tokenizer = partial(tokenize_and_process_labels, tokenizer=tokenizer)
     tokenized_datasets = dataset.map(tokenize_with_tokenizer, batched=True)
 
