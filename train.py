@@ -40,6 +40,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     configuration = read_config(args.config)
+    push_to_hub = configuration.get("push_to_hub", False)
 
     logging.basicConfig(filename='train.log', level=logging.INFO)
     logging.info('Started training')
@@ -88,6 +89,13 @@ if __name__ == '__main__':
     try:
         trainer.train()
         trainer.evaluate(tokenized_datasets["test"])
+
+        # Assuming push_to_hub=True in config and from huggingface_hub import notebook_login was
+        # called
+        if push_to_hub:
+            trainer.push_to_hub()
+            logging.info("Model pushed to Hugging Face Hub.")
+
     except Exception as e:
         logging.error("Error: An error occurred while training the model: %s", e)
 
