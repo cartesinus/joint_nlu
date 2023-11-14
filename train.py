@@ -35,7 +35,7 @@ def read_config(config_file):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Train a Joint NLU Model")
-    parser.add_argument('--config', type=str, default='config/xml_r-joint_nlu-massive-en.json',
+    parser.add_argument('--config', type=str, default='config/xlm_r-joint_nlu-massive-en.json',
                         help='Path to configuration JSON file.')
     args = parser.parse_args()
 
