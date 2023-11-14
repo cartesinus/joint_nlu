@@ -99,6 +99,8 @@ class NLUConfig:
         Returns:
             TrainingArguments: An instance with training parameters set.
         """
+        push_to_hub = self.trainer_config.get('push_to_hub', False)
+
         return TrainingArguments(
             output_dir=self.trainer_config['repository_id'],
             evaluation_strategy=self.trainer_config['evaluation_strategy'],
@@ -107,6 +109,7 @@ class NLUConfig:
             per_device_eval_batch_size=self.trainer_config.get('per_device_eval_batch_size', 16),
             num_train_epochs=self.trainer_config['num_train_epochs'],
             weight_decay=self.trainer_config['weight_decay'],
+            push_to_hub=push_to_hub
         )
 
     def to_json_string(self):

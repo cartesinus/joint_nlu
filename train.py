@@ -3,6 +3,7 @@
 """
 Script for training Joint NLU model.
 """
+import os
 import sys
 import json
 import logging
@@ -37,10 +38,18 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Train a Joint NLU Model")
     parser.add_argument('--config', type=str, default='config/xlm_r-joint_nlu-massive-en.json',
                         help='Path to configuration JSON file.')
+    parser.add_argument('--hf_token', type=str, default=None,
+                        help='Hugging Face authentication token (optional).')
     args = parser.parse_args()
 
+    # Use the token from the command line or environment variable
+    token = args.hf_token or os.environ.get('HF_TOKEN')
+
+    # Set the Hugging Face token if provided
+    if token:
+        HfFolder.save_token(token)    # Use the token from the command line or environment variable
+
     configuration = read_config(args.config)
-    push_to_hub = configuration.get("push_to_hub", False)
 
     logging.basicConfig(filename='train.log', level=logging.INFO)
     logging.info('Started training')
@@ -75,6 +84,8 @@ if __name__ == '__main__':
 
     # Prepare custom trainer
     training_args = nlu_config.get_training_arguments()
+    push_to_hub = nlu_config.trainer_config.get('push_to_hub', False)
+
     trainer = CustomTrainer(
         model=model,
         args=training_args,

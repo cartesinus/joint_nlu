@@ -53,4 +53,37 @@ To use dataset filtering, update the configuration file to include filters for t
 
 In this example, the dataset will be filtered to include only the rows where the scenario column contains either "calendar" or "travel", and the intent column contains either "book_flight" or "schedule_meeting".
 
-Please refer to the source code and comments for more detailed information.
+## Pushing to Hugging Face Hub
+
+To enable easy sharing and deployment of your trained Joint NLU model, our framework supports direct uploading to the Hugging Face Hub. To use this feature, ensure that you have git-lfs installed and that you are logged in to the Hugging Face Hub.
+
+In your training configuration (config.json), set the "push_to_hub" option to true under the "trainer" section. This instructs the training script to automatically push your model to the specified repository on the Hugging Face Hub upon successful training and evaluation.
+
+```json
+"trainer": {
+    ...
+    "push_to_hub": true
+    ...
+}
+```
+
+When this option is enabled, and provided you have sufficient permissions for the specified repository, the model will be pushed to the Hugging Face Hub at the end of the training process. This facilitates easy access, version control, and sharing of your NLU model within the community.
+
+### Temporary Authentication Method
+
+**Warning:** The following method involves using an environment variable to pass your Hugging Face token. This method should be considered temporary and may not be the safest option. Ensure your development environment is secure before using this approach. A more secure implementation will be provided in future updates.
+
+To push models to the Hugging Face Hub using an environment variable, follow these steps before running train.py script.
+
+```python
+import os
+from huggingface_hub import notebook_login, HfFolder
+
+notebook_login()
+token = HfFolder.get_token()
+os.environ['HF_TOKEN'] = token
+```
+
+Run the train.py script normally. The script will automatically use the token from the environment variable for authentication when pushing the model to the Hugging Face Hub.
+
+Note: This method currently places the responsibility of token security on the user. It's recommended to use this method only if you are confident in the security of your development environment.
