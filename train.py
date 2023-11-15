@@ -101,7 +101,7 @@ if __name__ == '__main__':
     try:
         trainer.train()
         logging.info("Results on testset:")
-        logging.ingo(trainer.evaluate(tokenized_datasets["test"]))
+        logging.info(trainer.evaluate(tokenized_datasets["test"]))
 
         # Assuming push_to_hub=True in config and from huggingface_hub import notebook_login was
         # called
