@@ -18,6 +18,7 @@ from joint_nlu import (
     CustomTrainer
 )
 from joint_nlu.utils import preprocess_dataset, tokenize_and_process_labels, compute_metrics
+from huggingface_hub import notebook_login, whoami, HfFolder, Repository
 
 
 def read_config(config_file):
@@ -99,12 +100,37 @@ if __name__ == '__main__':
     # Train the model
     try:
         trainer.train()
-        trainer.evaluate(tokenized_datasets["test"])
+        logging.info("Results on testset:")
+        logging.ingo(trainer.evaluate(tokenized_datasets["test"]))
 
         # Assuming push_to_hub=True in config and from huggingface_hub import notebook_login was
         # called
         if push_to_hub:
             trainer.push_to_hub()
+
+            user_info = whoami(token)
+            username = user_info['name']
+
+            # Get the repository name from the configuration
+            repository_name = configuration.get('repository_id')
+
+            # Construct the repository URL
+            repo_url = f'https://huggingface.co/{username}/{repository_name}'
+            repo_dir = "local_repo"
+            os.makedirs(repo_dir, exist_ok=True)
+
+            repo = Repository(repo_dir, clone_from=repo_url, use_auth_token=True)
+
+            # Add the nlu_config.json file to the cloned repository
+            config_json = nlu_config.to_json_string()
+            with open(os.path.join(repo_dir, 'nlu_config.json'), 'w') as f:
+                f.write(config_json)
+
+            # Commit and push the changes
+            repo.git_add('nlu_config.json')
+            repo.git_commit("Add NLU config")
+            repo.git_push()
+
             logging.info("Model pushed to Hugging Face Hub.")
 
     except Exception as e:

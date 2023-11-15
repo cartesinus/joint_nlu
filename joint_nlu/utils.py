@@ -27,7 +27,7 @@ pipeline to ensure optimal model performance.
 """
 from typing import List, Dict
 import numpy as np
-from datasets import load_dataset, concatenate_datasets, DatasetDict, ClassLabel
+from datasets import load_dataset, DatasetDict, ClassLabel
 from sklearn.metrics import accuracy_score, f1_score
 from sklearn.preprocessing import MultiLabelBinarizer
 
@@ -181,8 +181,8 @@ def get_all_iob_tokens(dataset):
     - This function does not preserve the order of appearance; it only ensures uniqueness.
     """
     uniq_iob = []
-    for x in dataset:
-        for iob_token in x.split(' '):
+    for token in dataset:
+        for iob_token in token.split(' '):
             if not iob_token in uniq_iob:
                 uniq_iob.append(iob_token)
     return uniq_iob
@@ -203,7 +203,8 @@ def apply_filters_to_dataset(dataset, filters):
     for filter_col, filter_values in filters.items():
         if isinstance(dataset.features[filter_col], ClassLabel):
             class_mapping = dataset.features[filter_col].names
-            filter_indices = [class_mapping.index(val) for val in filter_values if val in class_mapping]
+            filter_indices = [class_mapping.index(val) for val in filter_values
+                                                        if val in class_mapping]
             check_value = lambda example: example[filter_col] in filter_indices
         else:
             check_value = lambda example: example[filter_col] in filter_values
@@ -218,9 +219,14 @@ DATASET_CONFIGS = {
     "AmazonScience/massive": {
         "keep_columns": ["utt", "intent", "annot_utt", "ner_tags"],
         "rename_column": {"utt": "text"},
+        "iob_column": "annot_utt",
         "process_function": convert_to_flattag
     },
-    # Add other datasets here...
+    "custom.py": {
+        "keep_columns": ["utterance", "intent", "bio"],
+        "rename_column": {"utterance": "text"},
+        "iob_column": "bio",
+    }
 }
 
 
@@ -254,7 +260,6 @@ def preprocess_dataset(dataset_id, dataset_configs, split_ratio, filters=None):
     split_ratio = split_ratio if split_ratio else default_split_ratio
 
     # process individuell datasets
-    proc_lan_dataset_list=[]
     iob = []
 
     for lang in dataset_configs:
@@ -290,34 +295,59 @@ def preprocess_dataset(dataset_id, dataset_configs, split_ratio, filters=None):
             lang_ds_test = lang_ds_test.rename_column(old_name, new_name)
 
         # Get the function to process the dataset
-        process_function = config["process_function"]
+        process_function = config.get("process_function")
+        iob_column = config["iob_column"]
 
-        iob_uniq = get_all_iob_tokens([process_function(s) for s in lang_ds_train["annot_utt"]
-                                           + lang_ds_test["annot_utt"]
-                                           + lang_ds_validation["annot_utt"]])
-        iob = ClassLabel(num_classes=len(iob_uniq), names=iob_uniq)
+        if process_function and iob_column != "bio":
+            iob_uniq = get_all_iob_tokens([process_function(s) for s in lang_ds_train[iob_column]
+                                           + lang_ds_test[iob_column]
+                                           + lang_ds_validation[iob_column]])
+
+            iob = ClassLabel(num_classes=len(iob_uniq), names=iob_uniq)
+
+            lang_ds_train = lang_ds_train.add_column("iob",
+                [process_function(s).split() for s in lang_ds_train[iob_column]])
+            lang_ds_test = lang_ds_test.add_column("iob",
+                [process_function(s).split() for s in lang_ds_test[iob_column]])
+            lang_ds_validation = lang_ds_validation.add_column("iob",
+                [process_function(s).split() for s in lang_ds_validation[iob_column]])
+        else:
+            # Directly use the existing IOB column
+            iob_uniq = get_all_iob_tokens(list(lang_ds_train[iob_column]
+                                           + lang_ds_test[iob_column]
+                                           + lang_ds_validation[iob_column]))
+
+            iob = ClassLabel(num_classes=len(iob_uniq), names=iob_uniq)
+
+            lang_ds_train = lang_ds_train.add_column("iob",
+                    [iob.str2int(s.split()) for s in lang_ds_train[iob_column]])
+            lang_ds_test = lang_ds_test.add_column("iob",
+                    [iob.str2int(s.split()) for s in lang_ds_test[iob_column]])
+            lang_ds_validation = lang_ds_validation.add_column("iob",
+                    [iob.str2int(s.split()) for s in lang_ds_validation[iob_column]])
 
         #tokens
         lang_ds_train = lang_ds_train.add_column("tokens",
                 [x.split() for x in lang_ds_train["text"]])
         lang_ds_test = lang_ds_test.add_column("tokens",
-            [x.split() for x in lang_ds_test["text"]])
+                [x.split() for x in lang_ds_test["text"]])
         lang_ds_validation = lang_ds_validation.add_column("tokens",
                 [x.split() for x in lang_ds_validation["text"]])
 
         #iob
-        lang_ds_train = lang_ds_train.add_column("iob_tokens",
-            [process_function(s).split() for s in lang_ds_train["annot_utt"]])
-        lang_ds_test = lang_ds_test.add_column("iob_tokens",
-            [process_function(s).split() for s in lang_ds_test["annot_utt"]])
-        lang_ds_validation = lang_ds_validation.add_column("iob_tokens",
-            [process_function(s).split() for s in lang_ds_validation["annot_utt"]])
-        lang_ds_train = lang_ds_train.add_column("iob",
-                [iob.str2int(s) for s in lang_ds_train["iob_tokens"]])
-        lang_ds_test = lang_ds_test.add_column("iob",
-                [iob.str2int(s) for s in lang_ds_test["iob_tokens"]])
-        lang_ds_validation = lang_ds_validation.add_column("iob",
-                [iob.str2int(s) for s in lang_ds_validation["iob_tokens"]])
+#        lang_ds_train = lang_ds_train.add_column("iob_tokens",
+#            [process_function(s).split() for s in lang_ds_train["annot_utt"]])
+#        lang_ds_test = lang_ds_test.add_column("iob_tokens",
+#            [process_function(s).split() for s in lang_ds_test["annot_utt"]])
+#        lang_ds_validation = lang_ds_validation.add_column("iob_tokens",
+#            [process_function(s).split() for s in lang_ds_validation["annot_utt"]])
+
+#        lang_ds_train = lang_ds_train.add_column("iob",
+#                [iob.str2int(s) for s in lang_ds_train["iob_tokens"]])
+#        lang_ds_test = lang_ds_test.add_column("iob",
+#                [iob.str2int(s) for s in lang_ds_test["iob_tokens"]])
+#        lang_ds_validation = lang_ds_validation.add_column("iob",
+#                [iob.str2int(s) for s in lang_ds_validation["iob_tokens"]])
 
     dataset = DatasetDict({"train": lang_ds_train, "validation": lang_ds_validation,
         "test": lang_ds_test})
@@ -380,7 +410,7 @@ def tokenize_and_process_labels(examples: Dict, tokenizer) -> Dict:
             text.
     """
     # Tokenize all examples
-    tokenized_inputs = tokenizer(examples["annot_utt"], truncation=True, padding="max_length",
+    tokenized_inputs = tokenizer(examples["text"], truncation=True, padding="max_length",
                                  max_length=512)
 
     # Initialize list to store label ids
