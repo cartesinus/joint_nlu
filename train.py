@@ -11,28 +11,60 @@ import argparse
 from functools import partial
 import torch
 from transformers import AutoTokenizer
-from joint_nlu import (
-    NLUConfig,
-    JointNLUModel,
-    DataCollatorForJointIntentAndSlotFilling,
-    CustomTrainer
-)
-from joint_nlu.utils import preprocess_dataset, tokenize_and_process_labels, compute_metrics
-from huggingface_hub import notebook_login, whoami, HfFolder, Repository
+from huggingface_hub import whoami, HfFolder, Repository
+from joint_nlu.model import JointNLUModel
+from joint_nlu.config import NLUConfig
+from joint_nlu.data_collator import DataCollatorForJointIntentAndSlotFilling
+from joint_nlu.trainer import CustomTrainer
+from joint_nlu.data_preprocessing import preprocess_dataset, tokenize_and_process_labels
+from joint_nlu.metrics import compute_metrics
 
 
 def read_config(config_file):
     """Reads a JSON configuration file and returns a dictionary."""
     try:
         with open(config_file, 'r', encoding='UTF-8') as f:
-            configuration = json.load(f)
-        return configuration
+            model_configuration = json.load(f)
+        return model_configuration
     except FileNotFoundError:
         logging.error("Error: The file %s does not exist.", config_file)
         sys.exit(1)
     except json.JSONDecodeError:
         logging.error("Error: The file %s is not a valid JSON file.", config_file)
         sys.exit(1)
+
+
+def push_model_to_hub(repo_dir, auth_token, model_filename, config_filename):
+    """
+    Pushes the model and its configuration to the specified Hugging Face Hub repository.
+
+    Args:
+        repo_name (str): The name of the repository to push to.
+        auth_token (str): Hugging Face authentication token.
+        model_filename (str): Name of the model file.
+        config_filename (str): Name of the nlu config gile.
+
+    This function handles cloning the repository, saving the model and configuration,
+    and pushing these changes back to the repository.
+    """
+    user_info = whoami(auth_token)
+    username = user_info['name']
+    repo_url = f'https://huggingface.co/{username}/{repo_dir}'
+
+    try:
+        # Clone the repository
+        repo = Repository(repo_dir, clone_from=repo_url, use_auth_token=True)
+
+        # Commit and push the changes
+        repo.git_add(model_filename)
+        repo.git_add(config_filename)
+        repo.git_commit("Add model and config")
+        repo.git_push()
+
+        logging.info("Model and configuration successfully pushed to Hugging Face Hub.")
+    except Exception as e:
+        logging.error("Error pushing model to Hugging Face Hub: %s", e)
+        raise
 
 
 if __name__ == '__main__':
@@ -55,7 +87,7 @@ if __name__ == '__main__':
     logging.basicConfig(filename='train.log', level=logging.INFO)
     logging.info('Started training')
 
-    tokenizer = AutoTokenizer.from_pretrained(configuration['model_id'])
+    tokenizer = AutoTokenizer.from_pretrained(configuration['model_name'])
     split_ratio = configuration.get('split_ratio')
     filters = configuration.get('filters')
     dataset, iob = preprocess_dataset(configuration['dataset_id'],
@@ -80,7 +112,6 @@ if __name__ == '__main__':
     data_collator = DataCollatorForJointIntentAndSlotFilling(
         tokenizer=tokenizer,
         padding=nlu_config.data_collator_config['padding'],
-        # todo:        max_length=nlu_config.data_collator_config['max_length'],
     )
 
     # Prepare custom trainer
@@ -103,35 +134,20 @@ if __name__ == '__main__':
         logging.info("Results on testset:")
         logging.info(trainer.evaluate(tokenized_datasets["test"]))
 
-        # Assuming push_to_hub=True in config and from huggingface_hub import notebook_login was
-        # called
+        # Save model and config
+        CONFIG_FILENAME = 'config.json'
+        MODEL_FILENAME = 'jointnlu_model.pth'
+        REPO_DIR = configuration.get('repository_id')
+
+        os.makedirs(REPO_DIR, exist_ok=True)
+        torch.save(model, os.path.join(REPO_DIR, MODEL_FILENAME))
+        config_json = nlu_config.to_json_string()
+        with open(os.path.join(REPO_DIR, CONFIG_FILENAME), 'w', encoding='utf-8') as f:
+            f.write(config_json)
+
+        # Assuming push_to_hub=True in config and called huggingface_hub import notebook_login
         if push_to_hub:
-            trainer.push_to_hub()
-
-            user_info = whoami(token)
-            username = user_info['name']
-
-            # Get the repository name from the configuration
-            repository_name = configuration.get('repository_id')
-
-            # Construct the repository URL
-            repo_url = f'https://huggingface.co/{username}/{repository_name}'
-            repo_dir = "local_repo"
-            os.makedirs(repo_dir, exist_ok=True)
-
-            repo = Repository(repo_dir, clone_from=repo_url, use_auth_token=True)
-
-            # Add the nlu_config.json file to the cloned repository
-            config_json = nlu_config.to_json_string()
-            with open(os.path.join(repo_dir, 'nlu_config.json'), 'w') as f:
-                f.write(config_json)
-
-            # Commit and push the changes
-            repo.git_add('nlu_config.json')
-            repo.git_commit("Add NLU config")
-            repo.git_push()
-
-            logging.info("Model pushed to Hugging Face Hub.")
+            push_model_to_hub(REPO_DIR, token, MODEL_FILENAME, CONFIG_FILENAME)
 
     except Exception as e:
         logging.error("Error: An error occurred while training the model: %s", e)

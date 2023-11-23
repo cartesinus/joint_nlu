@@ -1,5 +1,5 @@
 {
-    "model_id": "distilbert-base-uncased",
+    "model_name": "distilbert-base-uncased",
     "dataset_id": "AmazonScience/massive",
     "dataset_configs": ["en-US"],
     "repository_id": "distilbert-massive-joint_nlu",

@@ -1,5 +1,5 @@
 {
-    "model_id": "xlm-roberta-base",
+    "model_name": "xlm-roberta-base",
     "dataset_id": "AmazonScience/massive",
     "dataset_configs": ["en-US"],
     "repository_id": "xlm_r-massive-joint_nlu",
