@@ -51,36 +51,20 @@ def semantic_accuracy(intent_true, intent_pred, slot_true, slot_pred):
 
 def compute_metrics(eval_pred):
     """
-    Calculate the semantic accuracy for intent and slot predictions.
+    Computes metrics for model evaluation including intent accuracy, intent F1 score,
+    slot F1 score, and semantic accuracy.
 
-    Semantic accuracy is a metric that considers a prediction to be correct
-    only if both the intent and slot predictions match their respective true labels.
-    This function computes the semantic accuracy across a batch of predictions,
-    counting a prediction as correct only if both intent and slot are accurately predicted.
+    This function processes the predictions and labels provided during the evaluation
+    step of the model training, calculating accuracy and F1 scores for both intents
+    and slots. Additionally, it computes the semantic accuracy which combines both
+    intent and slot predictions.
 
-    Parameters:
-    - intent_true (List[int]): A list of true intent labels.
-    - intent_pred (List[int]): A list of predicted intent labels.
-    - slot_true (List[List[int]]): A list of lists containing true slot labels for each token.
-    - slot_pred (List[List[int]]): A list of lists containing predicted slot labels for each token.
+    Args:
+        eval_pred: A tuple containing model predictions and labels for intents and slots.
 
     Returns:
-    - float: The semantic accuracy as a proportion of correct predictions over the total number of
-        predictions.
-
-    Example:
-    >>> intent_true = [1, 2, 3]
-    >>> intent_pred = [1, 2, 4]
-    >>> slot_true = [[1, 0], [2, 2], [3, 0]]
-    >>> slot_pred = [[1, 0], [2, 2], [4, 0]]
-    >>> semantic_accuracy(intent_true, intent_pred, slot_true, slot_pred)
-    0.6667  # 2 out of 3 predictions are correct for both intent and slots
-
-    Note:
-    - The function assumes that the length of the true and predicted lists for both intents and
-        slots are equal.
-    - The slot_true and slot_pred lists are expected to be aligned with the intent_true and
-        intent_pred lists.
+        dict: A dictionary containing the computed metrics: intent_accuracy,
+              intent_f1_macro, slot_f1, and semantic_accuracy.
     """
     predictions, _ = eval_pred
 

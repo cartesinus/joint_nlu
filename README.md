@@ -6,25 +6,14 @@ JointNLU is a Python library for training a Joint Natural Language Understanding
 
 The `JointNLUModel` is a PyTorch module for the Joint NLU task which uses a pretrained transformer model as its encoder, and includes separate classification layers for intents and slots.
 
-### Attributes
+### Architecture
 
-- `encoder`: A transformer model from Hugging Face's transformers library pre-trained on the given model_name.
-- `intent_id2label`: A mapping from intent IDs to intent labels.
-- `intent_label2id`: A mapping from intent labels to intent IDs.
-- `slot_id2label`: A mapping from slot IDs to slot labels.
-- `slot_label2id`: A mapping from slot labels to slot IDs.
-- `intent_classifier`: A linear layer for intent classification tasks, projecting encoder outputs to intent space.
-- `slot_classifier`: A linear layer for slot filling tasks, projecting encoder outputs to slot space.
+Architecture of JointNLU model:
 
-### Usage
+![JointNLU Architecture](img/jointnlu-architecture-0.1.0.png)
 
-```python
-from joint_nlu import JointNLUModel
 
-model = JointNLUModel('bert-base-uncased', num_intents=10, num_slots=20, intent_id2label, intent_label2id, slot_id2label, slot_label2id)
-```
-
-## Training
+## Training Model
 
 To train the model, use the `CustomTrainer` class. This class extends the Hugging Face's Trainer class, customized to compute losses for both intent classification and slot filling tasks. It includes methods to handle the custom data collator and implements hooks for additional functionality during the training process.
 
@@ -35,6 +24,48 @@ data_collator = DataCollatorForJointIntentAndSlotFilling(tokenizer)
 trainer = CustomTrainer(model=model, args=training_args, data_collator=data_collator, ...)
 trainer.train()
 ```
+
+## Model Inference
+
+JointNLU provides a script for running inference using the trained Joint NLU model. This script can work with a local model file or a model hosted on Hugging Face's Model Hub.
+
+### Using the Inference Script
+
+The inference script allows you to input a text phrase and get predictions for intent and slots using a pre-trained JointNLU model.
+
+### Prerequisites
+
+- Ensure you have a trained JointNLU model available either locally or on the Hugging Face Model Hub.
+- If using a model from the Hugging Face Model Hub, the script will automatically clone the repository containing the model.
+
+### Running the Script
+
+1. **Clone the Repository (if using Hugging Face Model Hub):**
+
+   The script can automatically clone the model repository from the Hugging Face Hub. Provide the full model name (including the Hugging Face username) as an argument.
+
+   Example:
+   ```bash
+   python inference.py --model "HF_username/jointnlu-model-name" --text "Your text here"
+   ```
+2. Use Local Model File:
+
+    If you have a local model file (.pth), provide the path to this file as the model argument.
+
+    Example:
+    ```bash
+    python inference.py --model "/path/to/jointnlu_model.pth" --text "Your text here"
+    ```
+
+### Inference Output
+
+The script outputs the predicted intent and slots for the provided text. For example:
+
+```
+Prediction: {'intent': 'BookFlight', 'slots': ['O', 'B-departure_city', 'O', 'B-arrival_city', 'O', 'B-departure_date']}
+```
+
+This output indicates the model's predicted intent and the slot labels for each token in the input text.
 
 ## Dataset Filtering
 
