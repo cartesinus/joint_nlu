@@ -23,12 +23,10 @@ jobs:
 
     - name: Lint with Pylint
       run: |
-        # Replace 'your_package' with your Python package directory
-        pylint $(git ls-files '*.py')
+        pylint $(git ls-files '*.py') --fail-under=9.0
 
     - name: Run tests
       run: |
-        # Add your test command here
         python -m unittest discover -s tests
 
     - name: Run model training
