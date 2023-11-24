@@ -1,0 +1,42 @@
+name: Python CI
+
+on: [push, pull_request]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.10
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pylint
+        pip install -r requirements.txt
+
+    - name: Lint with Pylint
+      run: |
+        # Replace 'your_package' with your Python package directory
+        pylint $(git ls-files '*.py')
+
+    - name: Run tests
+      run: |
+        # Add your test command here
+        python -m unittest discover -s tests
+
+    - name: Run model training
+      run: |
+        ./train.py --config tests/xlm_r-joint_nlu-massive-en-small-calendar.json
+
+    - name: Check model files
+      run: |
+        test -f test-xlm_r-massive-joint_nlu/jointnlu_model.pth
+        test -f test-xlm_r-massive-joint_nlu/config.json
+

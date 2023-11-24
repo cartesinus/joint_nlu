@@ -36,7 +36,7 @@ def convert_to_bio(sentence):
 
     The function expects the input sentence to have slots marked with square brackets.
     For example, the input "Book a [flight] from [city : New York] to [city : Los Angeles]"
-    would be converted to the BIO format as "O O B-flight O B-city I-city O O B-city I-city".
+    would be converted to the BIO format as "o o o o b-city i-city o b-city i-city".
 
     Parameters:
     - sentence (str): A string representing the sentence with words and annotated slots.
@@ -48,7 +48,7 @@ def convert_to_bio(sentence):
     Example:
     >>> sentence = "Book a [flight] from [city : New York] to [city : Los Angeles]"
     >>> convert_to_bio(sentence)
-    'o o b-flight o b-city i-city o o b-city i-city'
+    'o o o o b-city i-city o b-city i-city'
 
     Note:
     - The function assumes that slots are well-formed and correctly annotated.
@@ -62,13 +62,19 @@ def convert_to_bio(sentence):
     raw_sentence = ""
     for word in sentence.split(' '):
         word = word.strip()
-        if word.startswith('['):
+        if word.startswith('[') and word.endswith(']'):
+            bio += "o "
+            raw_sentence += word + " "
+        elif word.startswith('['):
             in_slot = True
             b_slot = True
-            slot = word[1:].lower()
+            if word.endswith(':'):
+                slot = word[1:-1].lower()
+            else:
+                slot = word[1:].lower()
         elif word == ':' and in_slot:
             continue
-        elif word.endswith(']'):
+        elif word.endswith(']') or word.endswith('],'):
             in_slot = False
             if b_slot:
                 b_slot = False
@@ -98,7 +104,7 @@ def convert_to_flattag(sentence):
     and assigns a single tag to all words belonging to a slot. Unlike the BIO format,
     this function does not distinguish between the beginning or inside of slots.
     For example, the input "Book a [flight] from [city : New York] to [city : Los Angeles]"
-    would be converted to "O O flight O city city O O city city".
+    would be converted to "o o flight o city city o o city city".
 
     Parameters:
     - sentence (str): A string representing the sentence with words and annotated slots.
@@ -110,7 +116,7 @@ def convert_to_flattag(sentence):
     Example:
     >>> sentence = "Book a [flight] from [city : New York] to [city : Los Angeles]"
     >>> convert_to_flattag(sentence)
-    'O O flight O city city O O city city'
+    'o o o o city city o city city'
 
     Note:
     - The function assumes that slots are well-formed and correctly annotated.
@@ -118,38 +124,8 @@ def convert_to_flattag(sentence):
     - The colon ':' within brackets is used to separate the slot type from its value.
     - All slot tags are converted to lowercase.
     """
-    flattag = ""
-    in_slot = False
-    slot = ""
-    raw_sentence = ""
-    for word in sentence.split(' '):
-        word = word.strip()
-        if word.startswith('['):
-            in_slot = True
-            b_slot = True
-            slot = word[1:].lower()
-        elif word == ':' and in_slot:
-            continue
-        elif word.endswith(']'):
-            in_slot = False
-            if b_slot:
-                b_slot = False
-                flattag += slot.lower() + " "
-            else:
-                flattag += slot.lower() + " "
-            raw_sentence += word[:-1] + " "
-        elif in_slot:
-            if b_slot:
-                b_slot = False
-                flattag += slot.lower() + " "
-            else:
-                flattag += slot.lower() + " "
-            raw_sentence += word + " "
-        else:
-            flattag += "O "
-            raw_sentence += word + " "
-
-    return flattag.strip()
+    bio = convert_to_bio(sentence)
+    return bio.replace('b-', '').replace('i-', '')
 
 
 def get_all_iob_tokens(dataset):
