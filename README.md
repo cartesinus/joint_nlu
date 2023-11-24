@@ -12,8 +12,56 @@ Architecture of JointNLU model:
 
 ![JointNLU Architecture](img/jointnlu-architecture-0.1.0.png)
 
+## Training Model (Script)
 
-## Training Model
+In addition to using the `CustomTrainer` class directly in Python, you can train the JointNLU model using the provided `train.py` script. This script simplifies the training process by handling configuration, dataset preparation, and model training in a streamlined manner.
+
+### Steps to Train Using `train.py`
+
+1. **Set Up Configuration**:
+   - Prepare a JSON configuration file specifying model parameters, dataset details, and training configurations. The script reads this configuration to set up the model and training process.
+
+2. **Running the Script**:
+   - Run the `train.py` script with the path to the configuration file. Optionally, provide a Hugging Face authentication token if you plan to push the model to the Hugging Face Model Hub.
+
+   Example:
+   ```bash
+   python train.py --config 'config/xlm_r-joint_nlu-massive-en.json' --hf_token 'your_token_here'
+   ```
+
+Here, --config points to your JSON configuration file, and --hf_token is used for Hugging Face Hub authentication (optional).
+
+Training Process:
+
+The script will read the configuration, prepare the dataset, and initiate the training process using the CustomTrainer class.
+Training progress and metrics are logged, providing insights into the training process.
+Pushing to Hugging Face Model Hub:
+
+If push_to_hub is set to True in the configuration file and a Hugging Face token is provided, the trained model and its configuration will be automatically pushed to the specified repository on the Hugging Face Model Hub.
+Configuration File
+The JSON configuration file should specify key details like model name, dataset IDs, training arguments, etc. Here's an example structure:
+
+```json
+{
+  "model_name": "xlm-roberta-base",
+  "dataset_id": "your_dataset_id",
+  "split_ratio": {
+    "train": "80%",
+    "validation": "10%",
+    "test": "10%"
+  },
+  "trainer_config": {
+    "push_to_hub": true,
+    "repository_id": "your_repo_name"
+  }
+  // Other necessary configurations...
+}
+```
+
+Make sure to customize the configuration file according to your model and dataset requirements.
+
+
+## Training Model (Library)
 
 To train the model, use the `CustomTrainer` class. This class extends the Hugging Face's Trainer class, customized to compute losses for both intent classification and slot filling tasks. It includes methods to handle the custom data collator and implements hooks for additional functionality during the training process.
 
