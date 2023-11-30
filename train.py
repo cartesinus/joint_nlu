@@ -11,7 +11,9 @@ import argparse
 from functools import partial
 import torch
 from transformers import AutoTokenizer
-from huggingface_hub import whoami, HfFolder, Repository
+from huggingface_hub import whoami, HfFolder, Repository, create_repo, upload_folder
+from huggingface_hub.hf_api import HfApi
+from huggingface_hub.utils._errors import HfHubHTTPError
 from joint_nlu.model import JointNLUModel
 from joint_nlu.config import NLUConfig
 from joint_nlu.data_collator import DataCollatorForJointIntentAndSlotFilling
@@ -52,16 +54,21 @@ def push_model_to_hub(repo_dir, auth_token, model_filename, config_filename):
     repo_url = f'https://huggingface.co/{username}/{repo_dir}'
 
     try:
-        # Clone the repository
-        repo = Repository(repo_dir, clone_from=repo_url, use_auth_token=True)
+        try:
+            create_repo(f"{username}/{repo_dir}")
+        except HfHubHTTPError as e:
+            if e.response.status_code == 409:  # Conflict error, repository already exists
+                logging.info(f"Repository {username}/{repo_dir} already exists. Skipping creation.")
+            else:
+                raise  # Re-raise the exception if it's not a 409 error
 
-        # Commit and push the changes
-        repo.git_add(model_filename)
-        repo.git_add(config_filename)
-        repo.git_commit("Add model and config")
-        repo.git_push()
-
-        logging.info("Model and configuration successfully pushed to Hugging Face Hub.")
+        upload_folder(
+            folder_path=repo_dir,
+            repo_id=f"{username}/{repo_dir}",
+            repo_type="model",
+            multi_commits=True,
+            multi_commits_verbose=True,
+        )
     except Exception as e:
         logging.error("Error pushing model to Hugging Face Hub: %s", e)
         raise
