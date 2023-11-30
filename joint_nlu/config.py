@@ -82,11 +82,13 @@ class NLUConfig:
 
         return TrainingArguments(
             output_dir=self.trainer_config['repository_id'],
+            logging_dir=self.trainer_config['repository_id'],
             evaluation_strategy=self.trainer_config['evaluation_strategy'],
             learning_rate=self.trainer_config['learning_rate'],
             per_device_train_batch_size=self.trainer_config.get('per_device_train_batch_size', 16),
             per_device_eval_batch_size=self.trainer_config.get('per_device_eval_batch_size', 16),
             num_train_epochs=self.trainer_config['num_train_epochs'],
+            save_strategy="no",
             weight_decay=self.trainer_config['weight_decay'],
             push_to_hub=push_to_hub
         )
